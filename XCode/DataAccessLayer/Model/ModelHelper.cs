@@ -5,9 +5,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
+using NewLife;
 using NewLife.Log;
 using NewLife.Reflection;
 using NewLife.Serialization;
@@ -390,6 +392,7 @@ namespace XCode.DataAccessLayer
             foreach (var pi in pis)
             {
                 if (!pi.CanRead || !pi.CanWrite) continue;
+                if (pi.GetCustomAttribute<IgnoreDataMemberAttribute>(false) != null) continue;
                 if (pi.GetCustomAttribute<XmlIgnoreAttribute>(false) != null) continue;
 
                 // 已处理的特性

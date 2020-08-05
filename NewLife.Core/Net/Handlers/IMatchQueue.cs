@@ -42,7 +42,7 @@ namespace NewLife.Net.Handlers
         /// <param name="source">任务源</param>
         public virtual Task<Object> Add(Object owner, Object request, Int32 msTimeout, TaskCompletionSource<Object> source)
         {
-            var now = TimerX.Now;
+            var now = DateTime.Now;
 
             // 控制超时时间，默认15秒
             if (msTimeout <= 10 || msTimeout >= 600_000) msTimeout = 15_000;
@@ -108,8 +108,8 @@ namespace NewLife.Net.Handlers
                     Interlocked.Decrement(ref _Count);
 
                     // 异步设置完成结果，否则可能会在当前线程恢复上层await，导致堵塞当前任务
-                    if (!src.Task.IsCompleted) Task.Factory.StartNew(() => src.TrySetResult(result));
-                    //if (!src.Task.IsCompleted) src.TrySetResult(result);
+                    //if (!src.Task.IsCompleted) Task.Factory.StartNew(() => src.TrySetResult(result));
+                    if (!src.Task.IsCompleted) src.TrySetResult(result);
 
                     return true;
                 }
@@ -127,7 +127,7 @@ namespace NewLife.Net.Handlers
         {
             if (_Count <= 0) return;
 
-            var now = TimerX.Now;
+            var now = DateTime.Now;
             // 直接遍历，队列不会很长
             var qs = Items;
             for (var i = 0; i < qs.Length; i++)

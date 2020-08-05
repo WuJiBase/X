@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
+using NewLife;
 
 namespace XUnitTest.Common
 {
@@ -43,6 +44,78 @@ namespace XUnitTest.Common
             Assert.Equal(dt4.Trim(), dt4.ToFullString().ToDateTimeOffset());
             Assert.Equal(dt4.Trim(), dt4.ToInt().ToDateTimeOffset());
             Assert.Equal(dt4.Trim("ms"), dt4.ToLong().ToDateTimeOffset());
+        }
+
+        [Fact]
+        public void DateTimeTest()
+        {
+            var str = "2020-03-09T21:16:17.88";
+            var dt = str.ToDateTime();
+            Assert.Equal(new DateTime(2020, 3, 9, 21, 16, 17, 880), dt);
+        }
+
+        [Fact]
+        public void DateTimeOffsetTest()
+        {
+            var str = "2020-03-09T21:16:25.905+08:00";
+            var dt = str.ToDateTime();
+            Assert.Equal(new DateTime(2020, 3, 9, 21, 16, 25, 905, DateTimeKind.Local), dt);
+
+            str = "2020-03-09T21:16:25.9052764+08:00";
+            var df = str.ToDateTimeOffset();
+            Assert.Equal(new DateTimeOffset(2020, 3, 9, 21, 16, 25, 905, TimeSpan.FromHours(8)).AddTicks(2764), df);
+        }
+
+        [Fact]
+        public void GMKTest()
+        {
+            var n = 1023L;
+            Assert.Equal("1,023", n.ToGMK());
+
+            n = (Int64)(1023.456 * 1024);
+            Assert.Equal("1,023.46K", n.ToGMK());
+
+            n = (Int64)(1023.456 * 1024 * 1024);
+            Assert.Equal("1,023.46M", n.ToGMK());
+
+            n = (Int64)(1023.456 * 1024 * 1024 * 1024);
+            Assert.Equal("1,023.46G", n.ToGMK());
+
+            n = (Int64)(1023.456 * 1024 * 1024 * 1024 * 1024);
+            Assert.Equal("1,023.46T", n.ToGMK());
+
+            n = (Int64)(1023.456 * 1024 * 1024 * 1024 * 1024 * 1024);
+            Assert.Equal("1,023.46P", n.ToGMK());
+
+            n = (Int64)(1.46 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024);
+            Assert.Equal("1.46E", n.ToGMK());
+        }
+
+        [Fact]
+        public void GMKTest2()
+        {
+            var format = "n1";
+
+            var n = 1023L;
+            Assert.Equal("1,023", n.ToGMK(format));
+
+            n = (Int64)(1023.456 * 1024);
+            Assert.Equal("1,023.5K", n.ToGMK(format));
+
+            n = (Int64)(1023.456 * 1024 * 1024);
+            Assert.Equal("1,023.5M", n.ToGMK(format));
+
+            n = (Int64)(1023.456 * 1024 * 1024 * 1024);
+            Assert.Equal("1,023.5G", n.ToGMK(format));
+
+            n = (Int64)(1023.456 * 1024 * 1024 * 1024 * 1024);
+            Assert.Equal("1,023.5T", n.ToGMK(format));
+
+            n = (Int64)(1023.456 * 1024 * 1024 * 1024 * 1024 * 1024);
+            Assert.Equal("1,023.5P", n.ToGMK(format));
+
+            n = (Int64)(1.46 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024);
+            Assert.Equal("1.5E", n.ToGMK(format));
         }
     }
 }

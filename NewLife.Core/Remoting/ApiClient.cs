@@ -39,12 +39,6 @@ namespace NewLife.Remoting
         /// <summary>调用统计</summary>
         public ICounter StatInvoke { get; set; }
 
-        ///// <summary>发送数据包统计信息</summary>
-        //public ICounter StatSend { get; set; }
-
-        ///// <summary>接收数据包统计信息</summary>
-        //public ICounter StatReceive { get; set; }
-
         /// <summary>性能跟踪器</summary>
         public ITracer Tracer { get; set; }
         #endregion
@@ -103,9 +97,6 @@ namespace NewLife.Remoting
                 var ms = StatPeriod * 1000;
                 if (ms > 0)
                 {
-                    //if (StatSend == null) StatSend = new PerfCounter();
-                    //if (StatReceive == null) StatReceive = new PerfCounter();
-
                     _Timer = new TimerX(DoWork, null, ms, ms) { Async = true };
                 }
 
@@ -200,9 +191,9 @@ namespace NewLife.Remoting
         /// <param name="args">参数</param>
         /// <param name="flag">标识</param>
         /// <returns></returns>
-        public virtual Boolean InvokeOneWay(String action, Object args = null, Byte flag = 0)
+        public virtual Int32 InvokeOneWay(String action, Object args = null, Byte flag = 0)
         {
-            if (!Open()) return false;
+            if (!Open()) return -1;
 
             var act = action;
 
@@ -289,7 +280,7 @@ namespace NewLife.Remoting
             if (!enc.Decode(rs, out _, out var code, out var data)) throw new InvalidOperationException();
 
             // 是否成功
-            if (code != 0) throw new ApiException(code, data.ToStr()?.Trim('\"')) { Source = invoker + "/" + action };
+            if (code != 0 && code != 200) throw new ApiException(code, data.ToStr()?.Trim('\"')) { Source = invoker + "/" + action };
 
             if (data == null) return default;
             if (resultType == typeof(Packet)) return (TResult)(Object)data;
@@ -308,9 +299,9 @@ namespace NewLife.Remoting
         /// <param name="args">参数</param>
         /// <param name="flag">标识</param>
         /// <returns></returns>
-        private Boolean Invoke(Object session, String action, Object args, Byte flag = 0)
+        private Int32 Invoke(Object session, String action, Object args, Byte flag = 0)
         {
-            if (session == null) return false;
+            if (session == null) return -1;
 
             // 性能计数器，次数、TPS、平均耗时
             var st = StatInvoke;
@@ -354,6 +345,22 @@ namespace NewLife.Remoting
         }
         #endregion
 
+        #region 异步接收
+        /// <summary>客户端收到服务端主动下发消息</summary>
+        /// <param name="message"></param>
+        protected virtual void OnReceive(IMessage message) { }
+
+        private void Client_Received(Object sender, ReceivedEventArgs e)
+        {
+            LastActive = DateTime.Now;
+
+            // Api解码消息得到Action和参数
+            if (!(e.Message is IMessage msg) || msg.Reply) return;
+
+            OnReceive(msg);
+        }
+        #endregion
+
         #region 登录
         /// <summary>新会话。客户端每次连接或断线重连后，可用InvokeWithClientAsync做登录</summary>
         /// <param name="client">会话</param>
@@ -387,12 +394,11 @@ namespace NewLife.Remoting
             var client = new NetUri(svr).CreateRemote();
             // 网络层采用消息层超时
             client.Timeout = Timeout;
-            //client.StatSend = StatSend;
-            //client.StatReceive = StatReceive;
 
             client.Add(GetMessageCodec());
 
             client.Opened += (s, e) => OnNewSession(s as ISocketClient);
+            client.Received += Client_Received;
 
             return client;
         }
@@ -410,11 +416,6 @@ namespace NewLife.Remoting
             var sb = Pool.StringBuilder.Get();
             var pf1 = StatInvoke;
             if (pf1 != null && pf1.Value > 0) sb.AppendFormat("请求：{0} ", pf1);
-
-            //var st1 = StatSend;
-            //var st2 = StatReceive;
-            //if (st1 != null && st1.Value > 0) sb.AppendFormat("发送：{0} ", st1);
-            //if (st2 != null && st2.Value > 0) sb.AppendFormat("接收：{0} ", st2);
 
             var msg = sb.Put(true);
             if (msg.IsNullOrEmpty() || msg == _Last) return;

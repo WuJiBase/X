@@ -113,7 +113,7 @@ namespace NewLife.Json
                 {
                     // 这里不能着急，派生类可能通过静态构造函数指定配置文件路径
                     //throw new XException("编码错误！请为配置类{0}设置{1}特性，指定配置文件！", typeof(TConfig), typeof(XmlConfigFileAttribute).Name);
-                    _.ConfigFile = "ViewConfig\\{0}.json".F(typeof(TConfig).Name);
+                    _.ConfigFile = $"ViewConfig\\{typeof(TConfig).Name}.json";
                     _.ReloadTime = 10000;
                 }
                 else
@@ -151,7 +151,7 @@ namespace NewLife.Json
                 // 频繁调用File.Exists的性能损耗巨大
                 if (cf.IsNullOrEmpty()) return false;
 
-                var now = TimerX.Now;
+                var now = DateTime.Now;
                 if (_.ReloadTime > 0 && expire < now)
                 {
                     var fi = new FileInfo(cf);
@@ -181,8 +181,8 @@ namespace NewLife.Json
                     lastWrite = fi.LastWriteTime;
                 }
                 else
-                    lastWrite = TimerX.Now;
-                expire = TimerX.Now.AddMilliseconds(_.ReloadTime);
+                    lastWrite = DateTime.Now;
+                expire = DateTime.Now.AddMilliseconds(_.ReloadTime);
             }
         }
 

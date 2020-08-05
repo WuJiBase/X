@@ -4,8 +4,10 @@ using System.Diagnostics;
 using System.Threading;
 using NewLife.Caching;
 using NewLife.Data;
+using NewLife.Log;
 using NewLife.Serialization;
 using Xunit;
+using NewLife;
 
 namespace XUnitTest.Caching
 {
@@ -228,6 +230,8 @@ namespace XUnitTest.Caching
         public void TestLock3()
         {
             var ic = Cache;
+
+            XTrace.WriteLine("抢死锁");
 
             using var ck = ic.AcquireLock("TestLock3", 3000);
 

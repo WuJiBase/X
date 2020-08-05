@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using NewLife.Http;
+using NewLife.Model;
 using NewLife.Threading;
 
 namespace NewLife.Log
@@ -21,6 +22,9 @@ namespace NewLife.Log
 
         /// <summary>最大异常采样数。采样周期内，最多只记录指定数量的异常事件，默认10</summary>
         Int32 MaxErrors { get; set; }
+
+        /// <summary>向http/rpc请求注入TraceId的参数名，为空表示不注入，默认W3C标准的traceparent</summary>
+        String AttachParameter { get; set; }
         #endregion
 
         /// <summary>建立Span构建器</summary>
@@ -44,6 +48,15 @@ namespace NewLife.Log
         #region 静态
         /// <summary>全局实例。默认每15秒采样一次</summary>
         public static ITracer Instance { get; set; } = new DefaultTracer { Log = XTrace.Log };
+
+        static DefaultTracer()
+        {
+            // 注册默认类型，便于Json反序列化时为接口属性创造实例
+            var ioc = ObjectContainer.Current;
+            ioc.AddTransient<ITracer, DefaultTracer>();
+            ioc.AddTransient<ISpanBuilder, DefaultSpanBuilder>();
+            ioc.AddTransient<ISpan, DefaultSpan>();
+        }
         #endregion
 
         #region 属性
@@ -58,6 +71,9 @@ namespace NewLife.Log
 
         /// <summary>采样结束时等待片段完成的时间。默认1000ms</summary>
         public Int32 WaitForFinish { get; set; } = 1000;
+
+        /// <summary>向http/rpc请求注入TraceId的参数名，为空表示不注入，默认是W3C标准的traceparent</summary>
+        public String AttachParameter { get; set; } = "traceparent";
 
         /// <summary>Span构建器集合</summary>
         protected ConcurrentDictionary<String, ISpanBuilder> _builders = new ConcurrentDictionary<String, ISpanBuilder>();
@@ -87,7 +103,7 @@ namespace NewLife.Log
             {
                 lock (this)
                 {
-                    if (_timer == null) _timer = new TimerX(s => DoProcessSpans(), null, Period * 1000, Period * 1000) { Async = true };
+                    if (_timer == null) _timer = new TimerX(s => DoProcessSpans(), null, 10_000, Period * 1000) { Async = true };
                 }
             }
         }
@@ -98,7 +114,7 @@ namespace NewLife.Log
             if (builders != null && builders.Length > 0)
             {
                 // 等待未完成Span的时间，默认1000ms
-                Thread.Sleep(WaitForFinish);
+                if (WaitForFinish > 0) Thread.Sleep(WaitForFinish);
 
                 ProcessSpans(builders);
             }
@@ -117,8 +133,8 @@ namespace NewLife.Log
                 if (bd.Total > 0)
                 {
                     var ms = bd.EndTime - bd.StartTime;
-                    var speed = ms == 0 ? 0 : bd.Total * 1000 / ms;
-                    WriteLog("Tracer[{0}] Total={1:n0} Errors={2:n0} Speed={3:n0}tps Cost={4:n0}ms MaxCost={5:n0}ms MinCost={6:n0}ms", bd.Name, bd.Total, bd.Errors, speed, bd.Cost / bd.Total, bd.MaxCost, bd.MinCost);
+                    var speed = ms == 0 ? 0 : bd.Total * 1000d / ms;
+                    WriteLog("Tracer[{0}] Total={1:n0} Errors={2:n0} Throughput={3:n2}tps Cost={4:n0}ms MaxCost={5:n0}ms MinCost={6:n0}ms", bd.Name, bd.Total, bd.Errors, speed, bd.Cost / bd.Total, bd.MaxCost, bd.MinCost);
 
 #if DEBUG
                     foreach (var span in bd.Samples)
@@ -140,8 +156,17 @@ namespace NewLife.Log
             //if (name.IsNullOrEmpty()) throw new ArgumentNullException(nameof(name));
             if (name == null) name = "";
 
-            return _builders.GetOrAdd(name, k => new DefaultSpanBuilder(this, k));
+            // http 中可能有问号，需要截断。问号开头就不管了
+            var p = name.IndexOf('?');
+            if (p > 0) name = name.Substring(0, p);
+
+            return _builders.GetOrAdd(name, k => OnBuildSpan(k));
         }
+
+        /// <summary>实例化Span构建器</summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        protected virtual ISpanBuilder OnBuildSpan(String name) => new DefaultSpanBuilder(this, name);
 
         /// <summary>开始一个Span</summary>
         /// <param name="name">操作名</param>
@@ -193,6 +218,23 @@ namespace NewLife.Log
             if (handler == null) handler = new HttpClientHandler();
 
             return new HttpClient(new HttpTraceHandler(handler) { Tracer = tracer });
+        }
+
+        /// <summary>为Http请求创建Span</summary>
+        /// <param name="tracer">跟踪器</param>
+        /// <param name="request">Http请求</param>
+        /// <returns></returns>
+        public static ISpan NewSpan(this ITracer tracer, HttpRequestMessage request)
+        {
+            if (tracer == null) return null;
+
+            var uri = request.RequestUri;
+            var span = tracer.NewSpan(uri.ToString().TrimEnd(uri.Query));
+            span.Tag = uri.PathAndQuery;
+            //span.Tag = request.Headers.UserAgent + "";
+            span.Attach(request);
+
+            return span;
         }
         #endregion
     }

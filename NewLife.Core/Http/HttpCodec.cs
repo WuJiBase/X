@@ -72,11 +72,12 @@ namespace NewLife.Http
                 // 消息完整才允许上报
                 if (msg.ContentLength == 0 || msg.ContentLength > 0 && msg.Payload != null && msg.Payload.Total >= msg.ContentLength)
                 {
-                    // 匹配输入回调，让上层事件收到分包信息
-                    context.FireRead(msg);
-
                     // 移除消息
                     ext["Message"] = null;
+
+                    // 匹配输入回调，让上层事件收到分包信息
+                    //context.FireRead(msg);
+                    return base.Read(context, msg);
                 }
             }
             else
@@ -91,7 +92,8 @@ namespace NewLife.Http
                 if (isGet)
                 {
                     // 匹配输入回调，让上层事件收到分包信息
-                    context.FireRead(msg);
+                    //context.FireRead(msg);
+                    return base.Read(context, msg);
                 }
                 // POST可能多次，最典型的是头部和主体分离
                 else
@@ -100,7 +102,8 @@ namespace NewLife.Http
                     if (msg.ContentLength == 0 || msg.ContentLength > 0 && msg.Payload != null && msg.Payload.Total >= msg.ContentLength)
                     {
                         // 匹配输入回调，让上层事件收到分包信息
-                        context.FireRead(msg);
+                        //context.FireRead(msg);
+                        return base.Read(context, msg);
                     }
                     else
                     {

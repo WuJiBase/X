@@ -441,7 +441,7 @@ namespace NewLife.Reflection
             catch (Exception ex)
             {
                 //throw new Exception("创建对象失败 type={0} parameters={1}".F(type.FullName, parameters.Join()), ex);
-                throw new Exception("创建对象失败 type={0} parameters={1} {2}".F(type.FullName, parameters.Join(), ex.GetTrue()?.Message), ex);
+                throw new Exception($"创建对象失败 type={type.FullName} parameters={parameters.Join()} {ex.GetTrue()?.Message}", ex);
             }
         }
 
@@ -518,12 +518,13 @@ namespace NewLife.Reflection
             {
                 var stype = src.GetType();
 
-                foreach (var pi in type.GetProperties())
+                foreach (var pi in type.GetProperties(true))
                 {
                     if (!pi.CanWrite) continue;
                     if (excludes != null && excludes.Contains(pi.Name)) continue;
-                    if (pi.GetIndexParameters().Length > 0) continue;
-                    if (pi.GetCustomAttribute<XmlIgnoreAttribute>() != null) continue;
+                    //if (pi.GetIndexParameters().Length > 0) continue;
+                    //if (pi.GetCustomAttribute<IgnoreDataMemberAttribute>(false) != null) continue;
+                    //if (pi.GetCustomAttribute<XmlIgnoreAttribute>() != null) continue;
 
                     var pi2 = stype.GetProperty(pi.Name);
                     if (pi2 != null && pi2.CanRead) SetValue(target, pi, GetValue(src, pi2));
@@ -533,12 +534,12 @@ namespace NewLife.Reflection
 
             // 来源对象转为字典
             var dic = new Dictionary<String, Object>();
-            foreach (var pi in src.GetType().GetProperties())
+            foreach (var pi in src.GetType().GetProperties(true))
             {
                 if (!pi.CanRead) continue;
                 if (excludes != null && excludes.Contains(pi.Name)) continue;
-                if (pi.GetIndexParameters().Length > 0) continue;
-                if (pi.GetCustomAttribute<XmlIgnoreAttribute>() != null) continue;
+                //if (pi.GetIndexParameters().Length > 0) continue;
+                //if (pi.GetCustomAttribute<XmlIgnoreAttribute>() != null) continue;
 
                 dic[pi.Name] = GetValue(src, pi);
             }
@@ -554,11 +555,11 @@ namespace NewLife.Reflection
         {
             if (target == null || dic == null || dic.Count == 0 || target == dic) return;
 
-            foreach (var pi in target.GetType().GetProperties())
+            foreach (var pi in target.GetType().GetProperties(true))
             {
                 if (!pi.CanWrite) continue;
-                if (pi.GetIndexParameters().Length > 0) continue;
-                if (pi.GetCustomAttribute<XmlIgnoreAttribute>() != null) continue;
+                //if (pi.GetIndexParameters().Length > 0) continue;
+                //if (pi.GetCustomAttribute<XmlIgnoreAttribute>() != null) continue;
 
                 if (dic.TryGetValue(pi.Name, out var obj))
                 {

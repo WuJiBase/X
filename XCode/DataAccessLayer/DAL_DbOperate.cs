@@ -4,6 +4,7 @@ using System.Data;
 using System.IO;
 using System.Text;
 using System.Threading;
+using NewLife;
 using NewLife.Collections;
 using NewLife.Data;
 using NewLife.Log;
@@ -340,14 +341,15 @@ namespace XCode.DataAccessLayer
         {
             var tracer = Tracer ?? GlobalTracer;
             var span = tracer?.NewSpan($"db:{ConnName}:{action}");
+            // 使用k1参数作为tag，一般是sql
+            if (span != null) span.Tag = (k1 + "").Cut(1024);
             try
             {
                 return callback(k1, k2, k3);
             }
             catch (Exception ex)
             {
-                // 使用k1参数作为tag，一般是sql
-                span?.SetError(ex, k1);
+                span?.SetError(ex, null);
                 throw;
             }
             finally

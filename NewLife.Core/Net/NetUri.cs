@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Serialization;
 using System.Xml.Serialization;
 
 namespace NewLife.Net
@@ -43,7 +44,7 @@ namespace NewLife.Net
         public String Host { get; set; }
 
         /// <summary>地址</summary>
-        [XmlIgnore]
+        [XmlIgnore, IgnoreDataMember]
         public IPAddress Address { get { return EndPoint.Address; } set { EndPoint.Address = value; } }
 
         /// <summary>端口</summary>
@@ -52,7 +53,7 @@ namespace NewLife.Net
         [NonSerialized]
         private IPEndPoint _EndPoint;
         /// <summary>终结点</summary>
-        [XmlIgnore]
+        [XmlIgnore, IgnoreDataMember]
         public IPEndPoint EndPoint
         {
             get
@@ -76,11 +77,11 @@ namespace NewLife.Net
 
         #region 扩展属性
         /// <summary>是否Tcp协议</summary>
-        [XmlIgnore]
+        [XmlIgnore, IgnoreDataMember]
         public Boolean IsTcp => Type == NetType.Tcp;
 
         /// <summary>是否Udp协议</summary>
-        [XmlIgnore]
+        [XmlIgnore, IgnoreDataMember]
         public Boolean IsUdp => Type == NetType.Udp;
         #endregion
 
@@ -143,6 +144,7 @@ namespace NewLife.Net
                 uri = array[1];
             }
 
+            Host = null;
             _EndPoint = null;
 
             // 特殊协议端口
@@ -164,9 +166,9 @@ namespace NewLife.Net
             if (p < 0) p = uri.IndexOf('?');
             if (p >= 0) uri = uri.Substring(0, p);
 
-            // 分析端口
+            // 分析端口，冒号前一个不能是冒号
             p = uri.LastIndexOf(':');
-            if (p >= 0)
+            if (p >= 0 && (p < 1 || uri[p - 1] != ':'))
             {
                 var pt = uri.Substring(p + 1);
                 if (Int32.TryParse(pt, out var port))
@@ -176,7 +178,10 @@ namespace NewLife.Net
                 }
             }
 
-            Host = uri;
+            if (IPAddress.TryParse(uri, out var address))
+                Address = address;
+            else
+                Host = uri;
 
             return this;
         }
@@ -197,7 +202,7 @@ namespace NewLife.Net
 
         /// <summary>获取该域名下所有IP地址</summary>
         /// <returns></returns>
-        public IPAddress[] GetAddresses() => ParseAddress(Host);
+        public IPAddress[] GetAddresses() => ParseAddress(Host) ?? new[] { Address };
         #endregion
 
         #region 辅助
@@ -239,12 +244,18 @@ namespace NewLife.Net
                     break;
             }
             var host = Host;
-            if (host.IsNullOrEmpty()) host = Address + "";
+            if (host.IsNullOrEmpty())
+            {
+                if (Address.AddressFamily == AddressFamily.InterNetworkV6 && Port > 0)
+                    host = $"[{Address}]";
+                else
+                    host = Address + "";
+            }
 
             if (Port > 0)
-                return String.Format("{0}://{1}:{2}", p, host, Port);
+                return $"{p}://{host}:{Port}";
             else
-                return String.Format("{0}://{1}", p, host);
+                return $"{p}://{host}";
         }
         #endregion
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -80,8 +81,7 @@ namespace NewLife.Net
         internal void Start()
         {
             // 管道
-            var pp = Pipeline;
-            pp?.Open(CreateContext(this));
+            Pipeline?.Open(base.CreateContext(this));
 
             // 服务端SSL
             var sock = Client;
@@ -115,13 +115,7 @@ namespace NewLife.Net
             var sock = Client;
             if (sock == null || !sock.IsBound)
             {
-                // 根据目标地址适配本地IPv4/IPv6
-                if (uri != null && !uri.Address.IsAny())
-                {
-                    Local.Address = Local.Address.GetRightAny(uri.Address.AddressFamily);
-                }
-
-                sock = Client = NetHelper.CreateTcp(Local.EndPoint.Address.IsIPv4());
+                sock = Client = NetHelper.CreateTcp(Local.Address.IsIPv4());
                 //sock.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
                 if (NoDelay) sock.NoDelay = true;
                 if (timeout > 0)
@@ -204,7 +198,6 @@ namespace NewLife.Net
             var client = Client;
             if (client != null)
             {
-
                 WriteLog("Close {0} {1}", reason, this);
 
                 // 提前关闭这个标识，否则Close时可能触发自动重连机制
@@ -243,13 +236,13 @@ namespace NewLife.Net
         /// </remarks>
         /// <param name="pk">数据包</param>
         /// <returns>是否成功</returns>
-        protected override Boolean OnSend(Packet pk)
+        protected override Int32 OnSend(Packet pk)
         {
             var count = pk.Total;
 
-            //StatSend?.Increment(count, 0);
             if (Log != null && Log.Enable && LogSend) WriteLog("Send [{0}]: {1}", count, pk.ToHex());
 
+            var rs = count;
             var sock = Client;
             var gotLock = false;
             try
@@ -261,7 +254,6 @@ namespace NewLife.Net
                 // 加锁发送
                 _spinLock.Enter(ref gotLock);
 
-                var rs = 0;
                 if (_Stream == null)
                 {
                     if (count == 0)
@@ -299,16 +291,16 @@ namespace NewLife.Net
                     if (ThrowException) throw;
                 }
 
-                return false;
+                return -1;
             }
             finally
             {
                 if (gotLock) _spinLock.Exit();
             }
 
-            LastTime = TimerX.Now;
+            LastTime = DateTime.Now;
 
-            return true;
+            return rs;
         }
         #endregion
 
@@ -329,6 +321,8 @@ namespace NewLife.Net
             return sock.ReceiveAsync(se);
         }
 
+        /// <summary>异步读取数据流，仅用于SSL</summary>
+        /// <param name="ar"></param>
         private void OnEndRead(IAsyncResult ar)
         {
             var se = ar.AsyncState as SocketAsyncEventArgs;
@@ -385,8 +379,6 @@ namespace NewLife.Net
             var pk = e.Packet;
             if ((pk == null || pk.Count == 0) && e.Message == null && !MatchEmpty) return true;
 
-            //if (pk != null) StatReceive?.Increment(pk.Count, 0);
-
             // 分析处理
             RaiseReceive(this, e);
 
@@ -405,7 +397,11 @@ namespace NewLife.Net
 
             WriteLog("Reconnect {0}", this);
 
-            Open();
+            try
+            {
+                Open();
+            }
+            catch { }
         }
         #endregion
 
@@ -419,7 +415,7 @@ namespace NewLife.Net
                 if (_LogPrefix == null)
                 {
                     var name = _Server == null ? "" : _Server.Name;
-                    _LogPrefix = "{0}[{1}].".F(name, ID);
+                    _LogPrefix = $"{name}[{ID}].";
                 }
                 return _LogPrefix;
             }
@@ -433,9 +429,9 @@ namespace NewLife.Net
             if (Remote != null && !Remote.EndPoint.IsAny())
             {
                 if (_Server == null)
-                    return String.Format("{0}=>{1}", Local, Remote.EndPoint);
+                    return $"{Local}=>{Remote.EndPoint}";
                 else
-                    return String.Format("{0}<={1}", Local, Remote.EndPoint);
+                    return $"{Local}<={Remote.EndPoint}";
             }
             else
                 return Local.ToString();

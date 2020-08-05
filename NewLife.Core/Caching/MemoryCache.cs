@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using NewLife.Collections;
@@ -311,7 +310,7 @@ namespace NewLife.Caching
         /// <returns></returns>
         public override IDictionary<String, T> GetDictionary<T>(String key)
         {
-            var item = GetOrAddItem(key, k => new NullableDictionary<String, T>());
+            var item = GetOrAddItem(key, k => new ConcurrentDictionary<String, T>());
             return item.Visit() as IDictionary<String, T>;
         }
 
@@ -380,7 +379,7 @@ namespace NewLife.Caching
             public DateTime ExpiredTime { get; set; }
 
             /// <summary>是否过期</summary>
-            public Boolean Expired => ExpiredTime <= TimerX.Now;
+            public Boolean Expired => ExpiredTime <= DateTime.Now;
 
             /// <summary>访问时间</summary>
             public DateTime VisitTime { get; private set; }
@@ -397,7 +396,7 @@ namespace NewLife.Caching
             {
                 Value = value;
 
-                var now = VisitTime = TimerX.Now;
+                var now = VisitTime = DateTime.Now;
                 if (expire <= 0)
                     ExpiredTime = DateTime.MaxValue;
                 else
@@ -435,7 +434,7 @@ namespace NewLife.Caching
                             newValue = oldValue.ToDouble() + value.ToDouble();
                             break;
                         default:
-                            throw new NotSupportedException("不支持类型[{0}]的递增".F(value.GetType().FullName));
+                            throw new NotSupportedException($"不支持类型[{value.GetType().FullName}]的递增");
                     }
                 } while (Interlocked.CompareExchange(ref _Value, newValue, oldValue) != oldValue);
 
@@ -467,7 +466,7 @@ namespace NewLife.Caching
                             newValue = oldValue.ToDouble() - value.ToDouble();
                             break;
                         default:
-                            throw new NotSupportedException("不支持类型[{0}]的递减".F(value.GetType().FullName));
+                            throw new NotSupportedException($"不支持类型[{value.GetType().FullName}]的递减");
                     }
                 } while (Interlocked.CompareExchange(ref _Value, newValue, oldValue) != oldValue);
 

@@ -5,6 +5,7 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Xml.Serialization;
 using NewLife.Reflection;
 using NewLife.Serialization;
@@ -19,7 +20,7 @@ namespace NewLife.Data
         public String[] Columns { get; set; }
 
         /// <summary>数据列类型</summary>
-        [XmlIgnore]
+        [XmlIgnore, IgnoreDataMember]
         public Type[] Types { get; set; }
 
         /// <summary>数据行</summary>
@@ -407,7 +408,7 @@ namespace NewLife.Data
         #region 辅助
         /// <summary>数据集</summary>
         /// <returns></returns>
-        public override String ToString() => "DbTable[{0}][{1}]".F(Columns == null ? 0 : Columns.Length, Rows == null ? 0 : Rows.Count);
+        public override String ToString() => $"DbTable[{Columns?.Length}][{Rows?.Count}]";
 
         private static IDictionary<TypeCode, Object> _Defs;
         private static Object GetDefault(TypeCode tc)

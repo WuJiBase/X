@@ -54,10 +54,11 @@ namespace NewLife.Net
         public Boolean Add(ISocketSession session)
         {
             var key = session.Remote.EndPoint + "";
-            if (_dic.ContainsKey(key)) return false;
+            //if (_dic.ContainsKey(key)) return false;
+
+            if (!_dic.TryAdd(key, session)) return false;
 
             session.OnDisposed += (s, e) => { _dic.Remove((s as ISocketSession).Remote.EndPoint + ""); };
-            _dic.TryAdd(key, session);
 
             return true;
         }
@@ -93,7 +94,7 @@ namespace NewLife.Net
             var keys = new List<String>();
             var values = new List<ISocketSession>();
             // 估算完成时间，执行过长时提示
-            using (var tc = new TimeCost("{0}.RemoveNotAlive".F(GetType().Name), 100))
+            using (var tc = new TimeCost($"{GetType().Name}.RemoveNotAlive", 100))
             {
                 tc.Log = Server.Log;
 

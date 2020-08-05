@@ -53,20 +53,18 @@ namespace NewLife.Net
         /// <summary>最大并行接收连接数。默认CPU*1.6</summary>
         public Int32 MaxAsync { get; set; }
 
+        /// <summary>不延迟直接发送。Tcp为了合并小包而设计，客户端默认false，服务端默认true</summary>
+        public Boolean NoDelay { get; set; } = true;
+
         /// <summary>启用Http，数据处理时截去请求响应头，默认false</summary>
         public Boolean EnableHttp { get; set; }
 
-        /// <summary>管道</summary>
+        /// <summary>消息管道。收发消息都经过管道处理器，进行协议编码解码</summary>
+        /// <remarks>
+        /// 1，接收数据解码时，从前向后通过管道处理器；
+        /// 2，发送数据编码时，从后向前通过管道处理器；
+        /// </remarks>
         public IPipeline Pipeline { get; set; }
-
-        ///// <summary>会话统计</summary>
-        //public ICounter StatSession { get; set; }
-
-        ///// <summary>发送统计</summary>
-        //public ICounter StatSend { get; set; }
-
-        ///// <summary>接收统计</summary>
-        //public ICounter StatReceive { get; set; }
 
         /// <summary>SSL协议。默认None，服务端Default，客户端不启用</summary>
         public SslProtocols SslProtocol { get; set; } = SslProtocols.None;
@@ -112,11 +110,6 @@ namespace NewLife.Net
 
             if (Active || Disposed) return;
 
-            //// 统计
-            //if (StatSession == null) StatSession = new PerfCounter();
-            //if (StatSend == null) StatSend = new PerfCounter();
-            //if (StatReceive == null) StatReceive = new PerfCounter();
-
             var sock = Client;
 
             // 开始监听
@@ -129,7 +122,8 @@ namespace NewLife.Net
             // 在我（大石头）的开发机器上，实际上这里的最大值只能是200，大于200跟200一个样
             //Server.Start();
             sock.Bind(Local.EndPoint);
-            sock.Listen(Int32.MaxValue);
+            //sock.Listen(Int32.MaxValue);
+            sock.Listen(65535);
 
             if (Runtime.Windows)
             {
@@ -266,8 +260,6 @@ namespace NewLife.Net
                 session.ID = Interlocked.Increment(ref g_ID);
                 session.WriteLog("New {0}", session.Remote.EndPoint);
 
-                //StatSession?.Increment(1, 0);
-
                 NewSession?.Invoke(this, new SessionEventArgs { Session = session });
 
                 // 自动开始异步接收处理
@@ -293,18 +285,16 @@ namespace NewLife.Net
             {
                 // 服务端不支持掉线重连
                 AutoReconnect = 0,
-                NoDelay = true,
+                NoDelay = NoDelay,
                 Log = Log,
                 LogSend = LogSend,
                 LogReceive = LogReceive,
-                //StatSend = StatSend,
-                //StatReceive = StatReceive,
                 ProcessAsync = ProcessAsync,
                 Pipeline = Pipeline
             };
 
             // 为了降低延迟，服务端不要合并小包
-            client.NoDelay = true;
+            client.NoDelay = NoDelay;
 
             return session;
         }
@@ -348,7 +338,7 @@ namespace NewLife.Net
                 if (_LogPrefix == null)
                 {
                     var name = Name == null ? "" : Name.TrimEnd("Server", "Session", "Client");
-                    _LogPrefix = "{0}.".F(name);
+                    _LogPrefix = $"{name}.";
                 }
                 return _LogPrefix;
             }

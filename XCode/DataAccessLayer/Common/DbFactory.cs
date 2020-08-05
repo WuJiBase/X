@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using NewLife;
 using NewLife.Collections;
 using NewLife.Reflection;
 
@@ -17,6 +18,7 @@ namespace XCode.DataAccessLayer
             Register<Oracle>(DatabaseType.Oracle);
             Register<SqlServer>(DatabaseType.SqlServer);
             Register<PostgreSQL>(DatabaseType.PostgreSQL);
+            Register<DaMeng>(DatabaseType.DaMeng);
 #if !__CORE__
             Register<Access>(DatabaseType.Access);
             Register<SqlCe>(DatabaseType.SqlCe);

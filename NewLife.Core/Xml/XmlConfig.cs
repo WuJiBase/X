@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using System.Xml.Serialization;
@@ -111,7 +112,7 @@ namespace NewLife.Xml
                 {
                     // 这里不能着急，派生类可能通过静态构造函数指定配置文件路径
                     //throw new XException("编码错误！请为配置类{0}设置{1}特性，指定配置文件！", typeof(TConfig), typeof(XmlConfigFileAttribute).Name);
-                    _.ConfigFile = "Config\\{0}.config".F(typeof(TConfig).Name);
+                    _.ConfigFile = $"Config\\{typeof(TConfig).Name}.config";
                     _.ReloadTime = 10000;
                 }
                 else
@@ -128,18 +129,18 @@ namespace NewLife.Xml
 
         #region 属性
         /// <summary>配置文件</summary>
-        [XmlIgnore]
+        [XmlIgnore, IgnoreDataMember]
         public String ConfigFile { get; set; }
 
         /// <summary>最后写入时间</summary>
-        [XmlIgnore]
+        [XmlIgnore, IgnoreDataMember]
         private DateTime lastWrite;
         /// <summary>过期时间。如果在这个时间之后再次访问，将检查文件修改时间</summary>
-        [XmlIgnore]
+        [XmlIgnore, IgnoreDataMember]
         private DateTime expire;
 
         /// <summary>是否已更新。通过文件写入时间判断</summary>
-        [XmlIgnore]
+        [XmlIgnore, IgnoreDataMember]
         protected Boolean IsUpdated
         {
             get
@@ -149,7 +150,7 @@ namespace NewLife.Xml
                 // 频繁调用File.Exists的性能损耗巨大
                 if (cf.IsNullOrEmpty()) return false;
 
-                var now = TimerX.Now;
+                var now = DateTime.Now;
                 if (_.ReloadTime > 0 && expire < now)
                 {
                     var fi = new FileInfo(cf);
@@ -179,13 +180,13 @@ namespace NewLife.Xml
                     lastWrite = fi.LastWriteTime;
                 }
                 else
-                    lastWrite = TimerX.Now;
-                expire = TimerX.Now.AddMilliseconds(_.ReloadTime);
+                    lastWrite = DateTime.Now;
+                expire = DateTime.Now.AddMilliseconds(_.ReloadTime);
             }
         }
 
         /// <summary>是否新的配置文件</summary>
-        [XmlIgnore]
+        [XmlIgnore, IgnoreDataMember]
         public Boolean IsNew { get; set; }
         #endregion
 

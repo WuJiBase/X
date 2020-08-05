@@ -157,6 +157,127 @@ namespace NewLife.Security
         }
         #endregion
 
+        #region PEM
+        /// <summary>读取PEM文件到RSA参数</summary>
+        /// <param name="content"></param>
+        /// <returns></returns>
+        public static RSAParameters ReadPem(String content)
+        {
+            if (String.IsNullOrEmpty(content)) throw new ArgumentNullException(nameof(content));
+
+            // 公钥私钥分别处理
+            content = content.Trim();
+            if (content.StartsWith("-----BEGIN RSA PRIVATE KEY-----"))
+            {
+                content = content.Replace("-----BEGIN RSA PRIVATE KEY-----", null)
+                    .Replace("-----END RSA PRIVATE KEY-----", null)
+                    .Replace("\n", null).Replace("\r", null);
+
+                var data = Convert.FromBase64String(content);
+                var key1024 = data.Length == 609 || data.Length == 610;
+                var key2048 = data.Length == 1190 || data.Length == 1192;
+                if (!key1024 && !key2048) throw new ArgumentException(nameof(content));
+
+                var index = key1024 ? 11 : 12;
+                var modulus = new Byte[key1024 ? 128 : 256];
+                Array.Copy(data, index, modulus, 0, modulus.Length);
+
+                index += modulus.Length;
+                index += 2;
+                var exponent = new Byte[3];
+                Array.Copy(data, index, exponent, 0, 3);
+
+                index += 3;
+                index += 4;
+                if (data[index] == 0) index++;
+                var d = new Byte[key1024 ? 128 : 256];
+                Array.Copy(data, index, d, 0, d.Length);
+
+                index += d.Length;
+                if (key1024)
+                    index += data[index + 1] == 64 ? 2 : 3;
+                else
+                    index += data[index + 2] == 128 ? 3 : 4;
+                var p = new Byte[key1024 ? 64 : 128];
+                Array.Copy(data, index, p, 0, p.Length);
+
+                index += p.Length;
+                if (key1024)
+                    index += data[index + 1] == 64 ? 2 : 3;
+                else
+                    index += data[index + 2] == 128 ? 3 : 4;
+                var q = new Byte[key1024 ? 64 : 128];
+                Array.Copy(data, index, q, 0, q.Length);
+
+                index += q.Length;
+                if (key1024)
+                    index += data[index + 1] == 64 ? 2 : 3;
+                else
+                    index += data[index + 2] == 128 ? 3 : 4;
+                var dp = new Byte[key1024 ? 64 : 128];
+                Array.Copy(data, index, dp, 0, dp.Length);
+
+                index += dp.Length;
+                if (key1024)
+                    index += data[index + 1] == 64 ? 2 : 3;
+                else
+                    index += data[index + 2] == 128 ? 3 : 4;
+                var dq = new Byte[key1024 ? 64 : 128];
+                Array.Copy(data, index, dq, 0, dp.Length);
+
+                index += dp.Length;
+                if (key1024)
+                    index += data[index + 1] == 64 ? 2 : 3;
+                else
+                    index += data[index + 2] == 128 ? 3 : 4;
+                var iq = new Byte[key1024 ? 64 : 128];
+                Array.Copy(data, index, iq, 0, iq.Length);
+
+                return new RSAParameters
+                {
+                    Modulus = modulus,
+                    Exponent = exponent,
+                    D = d,
+                    P = p,
+                    Q = q,
+                    DP = dp,
+                    DQ = dq,
+                    InverseQ = iq
+                };
+            }
+            else
+            {
+                content = content.Replace("-----BEGIN PUBLIC KEY-----", null)
+                    .Replace("-----END PUBLIC KEY-----", null)
+                    .Replace("\n", null).Replace("\r", null);
+
+                var data = Convert.FromBase64String(content);
+                var key1024 = data.Length == 162;
+                var key2048 = data.Length == 294;
+                if (!key1024 && !key2048) throw new ArgumentException(nameof(content));
+
+                var modulus = new Byte[key1024 ? 128 : 256];
+                var exponent = new Byte[3];
+                if (key1024)
+                {
+                    Array.Copy(data, 29, modulus, 0, 128);
+                    Array.Copy(data, 159, exponent, 0, 3);
+                }
+                else
+                {
+                    Array.Copy(data, 33, modulus, 0, 256);
+                    Array.Copy(data, 291, exponent, 0, 3);
+                }
+
+                return new RSAParameters
+                {
+                    Modulus = modulus,
+                    Exponent = exponent
+                };
+            }
+        }
+        #endregion
+
         #region 辅助
         private static RNGCryptoServiceProvider _rng;
         /// <summary>使用随机数设置</summary>

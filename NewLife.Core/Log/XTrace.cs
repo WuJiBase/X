@@ -126,7 +126,7 @@ namespace NewLife.Log
         static Boolean InitLog()
         {
             /*
-             * 日志初始化可能会除法配置模块，其内部又写日志导致死循环。
+             * 日志初始化可能会触发配置模块，其内部又写日志导致死循环。
              * 1，外部写日志引发初始化
              * 2，标识日志初始化正在进行中
              * 3，初始化日志提供者
@@ -143,9 +143,13 @@ namespace NewLife.Log
                 if (_Log != null && _Log != Logger.Null) return true;
 
                 _initing = Thread.CurrentThread.ManagedThreadId;
-                _Log = TextFileLog.Create(LogPath);
 
                 var set = Setting.Current;
+                if (set.LogFileFormat.Contains("{1}"))
+                    _Log = new LevelLog(LogPath, set.LogFileFormat);
+                else
+                    _Log = TextFileLog.Create(LogPath);
+
                 if (!set.NetworkLog.IsNullOrEmpty())
                 {
                     var nlog = new NetworkLog(NetHelper.ParseEndPoint(set.NetworkLog, 514));
